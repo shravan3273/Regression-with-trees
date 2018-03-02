@@ -1,0 +1,86 @@
+######## Regression-with-trees
+Estimating quality of wines with regression trees and model trees
+Winemaking is a challenging and competitive business that offers the potential for great profit.As a consequences, the winemaking industry has heavily invested in data collection and machine learning methods that may assist with the decision science of winemaking.
+
+$$$$$$$$Step1:- Collecting data
+The data includes examples of red and white wines. It includes information on 11 chemical properties of 4,898 wine samples
+
+$$$$$$$Step2:- Exploring and preparing the data
+#Importing the data
+wine <- read.csv("../input/whitewine.csv")
+head(wine)
+str(wine)
+#Here, we dont need  style of wine. so lets remove them
+wine <- wine[1:12]
+str(wine)
+NOTE:- Compared to other types of machine learning models, one of the advantage of trees is that they handle many types of data preprocessing. This means we do not need to normalize or standardize the features.
+
+#Lets examine the distribution of the outcome variable i.e., quality
+hist(wine$quality)
+Above diagram :- The wine quality values appear to follow a fairly normal, bell-shaped distribution, centered around the value 6.
+
+#Dividing the data into train and test
+#Since data set is sorted into random order, we divide it in the same way
+train <- wine[1:5000,]
+test <- wine[5001:6497,]
+#We'll evaluate the performance of our tree-based models on the testing data to see if we can obtain results comparable to the prior research study
+
+
+$$$$$$$$Step3:- Training a model on the data
+library(rpart)
+regression <- rpart(quality ~ .,data = train)
+regression
+Lets understand what above output telling us:
+For each node in the tree, the number of examples reaching the decision point is listed.For instance, all 5000 examples begin at the root node, of which 3167 have alcohol<10.65 and 1833 have alcohol>=10.85. Because alcohol was used first in the tree, it is the single most important predictor of wine quality.
+Nodes indicated by * are terminal or leaf nodes, which means that they result in a prediction.For example, node 5 has 5.882793. Which means, when the tree is used for predictions, any wine samples with alcohol < 10.85 & volatile.acidity < 0.235 would therefore be predicted to have a quality value of 5.882793
+
+Visualising decision trees:
+library(rpart.plot)
+rpart.plot(regression, digits = 3)
+rpart.plot(regression, digits = 3,fallen.leaves = TRUE, type = 3,extra = 101)
+         #where, 
+                #fallen.leaves = forces the leaf nodes to be alligned at the bottom of the plot
+                #type&extra = affect the way the decisions and nodes are lebelled
+                
+$$$$$$$$$$Step4:- Evaluating model performance
+To use the regression tree model to make predictions on the test data, we use the predict function
+pred_reg <- predict(regression,test)
+summary(pred_reg)
+summary(test$quality)
+
+Summary statistics of our predictions suggests a problem; the predictions fall on a much narrower range than the true values.This finding suggests that the model is not correcctly identifying the extreme cases, in particular the best and worst wines.On the other hand, between the first and third quartile, we may be doing well.
+The correlation between the predicted and actual quality values provides a simple way to guage the models performance.
+cor(pred_reg,test$quality)
+
+Measuring performance with the mean absolute error:
+Another way to think about the model's performance is to consider how far, on average, its prediction was from true value.This measuremen is called Mean Absolute Error(MAE)
+MAE <- function(actual,predicted){
+                mean(abs(actual - predicted))
+              }
+#MAE for our predictions is then:
+MAE(pred_reg,test$quality)
+
+This imples that on average, the difference between our model's predictions and the true quality score was about 0.57 On a quality scale from 0 to 10, this seems to suggest that our mdoel is doing fairly well.
+mean(train$quality)
+5.79
+MAE(5.79,test$quality)
+0.646339345357381
+If we predicted the value 5.79 for every wine sample, we would have a mean absolute error of only about 0.64
+
+
+$$$$$$$$$$$Step5:- Improving model performance
+To improve the performance of our learner, lets try to build a model tree. Recall that a model tree improves on regression trees by replacing the leaf nodes with regression models.
+
+library(RWeka)
+model <- M5P(quality ~ .,data = train)
+model
+
+The key difference in regression tree and model tree, is that, the nodes terminate not in a numeric prediction, but a linear model(LM1 and LM2).It is important to note that the effect estimated by LM1 apply only to wine samples reaching that node; a total of 27 linear models were built in this model tree, each with different estimates of the impact of fixed acidity and the other 10 features.
+pred_mod <- predict(model,test)
+summary(pred_mod)
+cor(pred_mod,test$quality)
+MAE(test$quality,pred_mod)
+
+1)Model tree appears to be predicting a wider range of values than the regression tree
+2)Correlation also seems to be substantially higher
+3)The model slightly reduced the MAE
